@@ -15,3 +15,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Tooling tests
         run: bash tests/test_tag_release.sh
+      - name: Reference simulation invariant
+        run: python3 tools/reference_sim.py --check

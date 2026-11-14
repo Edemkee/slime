@@ -1,6 +1,6 @@
 # Slime Balance - Game Design Document
 
-Working title. Numbers are starting values for tuning, not commitments.
+Working title. Numbers are starting values for tuning, not commitments. Technical detail (algorithm, parameters) lives in ARCHITECTURE.md.
 
 ## 1. Vision
 
@@ -18,110 +18,144 @@ Working title. Numbers are starting values for tuning, not commitments.
 
 1. Goo drops onto the plate.
 2. Player grabs the plate and tilts it to keep the goo on, while steering the goo into pickups.
-3. Difficulty ramps continuously (slipperier, bigger, wobblier goo).
-4. Goo falls off (or the timer cap is reached) -> score, best score, unlock progress.
+3. The goo heats up: slipperier, bigger, wobblier.
+4. Goo falls off (or boils away at the cap) -> score, best score, progress to the next unlock.
 5. Unlocks earned by best score offer an easier kit -> retry.
 
 ## 3. Presentation and camera
 
-- **2D, side-on, single screen.** Gravity points to the bottom of the screen. The plate is seen edge-on, balanced on a pivot (a stick, a finger, a waiter's hand).
-- Reasoning: side-on makes "tilt toward where I drag" and "goo falls down the screen" read instantly, keeps the physics one-dimensional enough to tune well, and plays the same with mouse, touch and trackpad.
+- **2D, side-on, single screen.** Gravity points to the bottom of the screen. The plate is seen edge-on, balanced on a pivot.
+- Reasoning: side-on makes "tilt toward where I drag" and "goo falls down the screen" read instantly, keeps the physics simple enough to tune well, and plays the same with mouse, touch and trackpad.
 
 ## 4. Mechanics
 
 ### 4.1 Plate
-- A rigid body pinned at its centre to a pivot. It has mass and rotational inertia, light angular damping, and **no restoring spring**: left alone it tips whichever way the goo's weight pushes it.
-- Top surface is slightly **crowned** (convex), so even a perfectly level plate sheds goo.
+- A rigid body pinned at its centre to a pivot. It has rotational inertia, light angular damping, and **no restoring spring**: left alone it tips whichever way the goo's weight pushes it.
+- Top surface is slightly **crowned** (convex), so even a level plate sheds goo.
 - Tilt is limited to about +/-40 degrees.
 
 ### 4.2 Controls
-- **Press** on the plate to grab that point. **Drag**: a spring pulls the grabbed point toward the cursor, applying torque. **Release**: the plate is free again.
-- Grabbing further from the pivot gives more leverage; quick flicks can toss the goo into the air (an advanced skill used to reach high pickups).
-- Touch works the same. Gamepad (stick = torque) is a later idea.
+- **Mouse / touch (primary)**: press on the plate to grab that point. Drag: a spring pulls the grabbed point toward the cursor, applying torque. Release: the plate is free again. Grabbing further from the pivot gives more leverage.
+- **Toss**: a quick flick throws the goo into the air. An advanced skill, rewarded by "hang time" and needed for high pickups.
+- **Gamepad**: left and right triggers press their side of the rim down with analogue force (like a finger on each edge). Left stick is an alternative.
+- **Keyboard**: left/right keys press the rim down, force ramping up while held.
+- **Toggle-grab option**: click once to grab, click again to release, for players who cannot hold a button.
 
 ### 4.3 Goo
-- A light, soft-bodied blob: it flattens, stretches, sloshes and overhangs the rim.
+- A light, soft-bodied blob that rests as a **puddle** (roughly three times wider than tall), sloshes, stretches and overhangs the rim.
 - **Viscous, not sticky**: its grip on the plate is drag proportional to sliding speed, with no static friction. On any slope, however small, it creeps. It never "parks".
-- It has a small idle wobble (it is a little bit alive), which knocks it off any knife-edge balance.
+- It wobbles on its own (it is a little bit alive), which knocks it off any knife-edge balance.
 
 ### 4.4 The "no stable point" rule
 Three things together guarantee there is no resting state:
 1. Plate on a free pivot: goo off-centre tips the plate toward itself (positive feedback).
 2. Crowned surface plus viscous-only grip: the only equilibrium is the exact top of the crown, and it is unstable.
-3. Idle wobble and the difficulty ramp push the goo off that point.
+3. The goo's own wobble and the heat ramp push it off that point.
 
-**Design invariant (automated test):** for every plate/goo combination in the game, a simulation with the cursor held still (or released) must end in a loss within 20 seconds. No unlock or powerup may break this.
+**Design invariant (automated test)**, at the easiest moment of a run (heat 0), for every kit combination:
+- hands off the plate -> loss within **10 seconds**;
+- plate held but cursor never moved -> loss within **20 seconds**.
+
+No unlock may break this. The reference prototype measures about 3 s and 5 s for the default kit, and about 3.5 s and 6.5 s for the easiest kit combination.
 
 ### 4.5 Lose condition
-- The goo's centre of mass drops below the plate's rim line and it is no longer supported -> run ends. Brief slow-motion on the fall, then the score card. Retry with one click or key.
+- The goo's centre drops below the plate's lower rim -> run ends. Brief slow-motion on the fall, then the score card. Retry with one click or key.
 
-### 4.6 Difficulty ramp and session cap
-- Over the run: goo drag falls, goo slowly swells, wobble grows, occasional gusts push the goo sideways later on.
-- Target lengths: first-time players 15-30 s, typical 45-90 s, experts approach the cap.
-- **Hard cap at 3:00**: the goo pops in a celebratory "perfect run" finish with a large bonus. (Cap length is an open question, see section 9.)
+### 4.6 Heat: the difficulty ramp and the session timer
+- The goo **warms up** over the run. Heat goes from 0 to 1 over the session cap and drives everything: grip falls, the goo swells, the wobble grows. The goo's colour shifts from cool to hot, and a heat meter on the HUD doubles as the run timer.
+- Heat has six stages; each stage raises the score multiplier by one.
+- **At the cap (3:00 assumed) the goo boils off in a celebratory puff: a "perfect run"** with a large bonus. It should be rare: the reference prototype's strongest scripted player lasts about 2:35.
+- Target run lengths for people: first-timers 10-30 s, typical 45-90 s, experts approach the cap. To be set at the fun gate.
+
+### 4.7 Mid-run events (after the fun gate, if still wanted)
+Short, announced 2 seconds ahead, none before 0:45:
+- **Gust**: a sideways push on the goo for 3 s.
+- **Sliding pivot**: the pivot drifts left and right for 8 s.
+- **Goo rain**: droplets fall and merge, a growth spurt.
 
 ## 5. Scoring
 
-- **Survival**: 10 points per second x multiplier. The multiplier steps up every 30 s (x1 to x6).
-- **Edge rider**: small bonus trickle while the goo is in the outer fifth of the plate. Risk pays.
-- **Pickups**: see below. Score orbs are worth 100 x current multiplier.
-- **Perfect run**: +2,000 at the cap.
-- Rough ceiling: about 6,300 from survival alone, 10,000-12,000 with pickups and bonuses.
+All gains are multiplied by the current multiplier (x1 to x6, from the heat stage).
+
+| Source | Points | Condition |
+|---|---|---|
+| Survival | 10 per second | Always while playing |
+| Edge rider | +5 per second | Goo centre in the outer fifth of the plate, in contact |
+| Hang time | 100 per airborne second | Awarded on landing, if airborne at least 0.4 s |
+| Close call | 150 | Goo centre went past the rim and came back to the inner four fifths; 3 s cooldown |
+| Score Orb | 100 | Pickup |
+| Perfect run | 2,000 (not multiplied) | Reaching the cap |
+
+Rough ceiling: 6,300 from survival alone over a full run, 10,000-12,000 with bonuses.
 
 ## 6. Pickups and powerups
 
-Pickups float just above the plate (reach by sliding) or higher up (reach by tossing). They appear every 6-10 s, stay about 5 s, and are collected when the goo touches them. Effects are temporary and shown as a draining ring on the HUD. Each has a distinct shape and colour, so they read without relying on colour alone.
+Pickups float just above the plate (reach by sliding) or higher up (reach by tossing). One appears every 6-10 s, stays about 5 s, at most two at once, and is collected when the goo touches it. Effects are temporary and shown as a draining ring on the HUD. Each has a distinct shape, so they read without relying on colour.
 
 | Pickup | Effect | Duration |
 |---|---|---|
-| Firm Up | Goo hardens: drag x3, less slosh | 7 s |
+| Firm Up (ice cube) | Goo chills: grip x3 and it balls up into a firmer, rounder shape | 7 s |
 | Shrink | Goo size -30% | 8 s |
 | Score Orb | +100 x multiplier, instantly | - |
-| Double | Score x2 | 8 s |
+| Double | Score gains x2 | 8 s |
 | Slow-Mo | Time runs at 70% | 5 s |
 | Rim Guard | Temporary raised rim on both edges | 6 s |
 
-Pickups near the rim are worth more often than pickups in the centre. Hazard pickups (e.g. extra-slippery "grease") are an open idea for later.
+Score pickups appear near the rim more often than in the centre. Powerups never stop the heat.
 
 ## 7. Progression: unlocks from best score
 
-Reaching a best-score threshold permanently unlocks a kit piece. Before a run the player picks one **plate shape**, one **plate mod** and one **goo trait**. All make the game easier; none removes the instability (section 4.4).
+Reaching a best-score threshold permanently unlocks a kit piece. Before a run the player picks one **plate shape**, one **plate mod** and one **goo trait**. All make the game easier; none removes the instability (4.4).
 
 | Best score | Unlock | Slot | Effect |
 |---|---|---|---|
-| 500 | Tacky Goo | Goo trait | +25% base drag |
+| 500 | Tacky Goo | Goo trait | +25% grip |
 | 1,200 | Wide Platter | Plate shape | +15% width |
 | 2,200 | Heavy Plate | Plate mod | 2x rotational inertia: tips more slowly |
-| 3,500 | Rimmed Plate | Plate shape | Low lip at both edges: buys time, overflows as the goo swells |
+| 3,500 | Rimmed Plate | Plate shape | Low lip at both edges |
 | 5,000 | Compact Goo | Goo trait | Starts 20% smaller |
 | 7,000 | Gentle Crown | Plate shape | Flatter crown: slower creep |
 | 9,000 | Lucky Goo | Goo trait | Pickups appear more often and last longer |
 | Perfect run | Golden Goo | Cosmetic | Bragging rights |
 
-- The first unlock should land within a player's first few minutes (500 is roughly a 40 s run).
+- The score card always shows a progress bar to the next unlock.
 - Because easier kits inflate scores, leaderboards are split: **Classic** (default kit only) and **Open** (any kit).
-- Thresholds will be re-tuned from playtest score distributions.
+- Thresholds will be re-tuned from real play at the content gate.
 
-## 8. Art and audio direction (brief)
+## 8. Feel, art, audio, accessibility
 
-- Bright, clean, flat-shaded 2D. The goo is a glossy translucent blob with simple eyes that look where it is sliding and panic near the rim.
-- Squash-and-stretch on everything. Screen shake and particles kept light; a reduced-motion option.
-- Audio: wet squelches tied to goo speed and impacts, a rising musical tension layer as the multiplier climbs, a satisfying "splat" on loss.
+- Bright, clean, flat-shaded 2D. The goo is a glossy translucent blob with simple eyes that look where it is sliding and panic near the rim. Its colour is the heat.
+- Squash-and-stretch on everything. Screen shake and particles kept light.
+- Audio: wet squelches tied to goo speed and impacts, music that adds a layer per heat stage, a satisfying splat on loss.
+- **Onboarding**: no tutorial screens. On the first run an animated hand shows grab-and-drag until the player does it.
+- **Accessibility**: reduced-motion setting; no information by colour alone; toggle-grab; keyboard and gamepad play; the game is operable without reading text.
 
-## 9. Open questions
+## 9. Open questions (for the user)
 
 1. **Session cap**: the brief said "at maximum minutes long" without a number. Assumed 3:00.
 2. **2D side-on** was assumed from "goo wants to go towards the bottom of the screen". A 3D two-axis tilting plate is a different, larger game.
 3. **Business model**: free on itch.io and a small price on Steam, or free on both?
-4. Hard cap with a "perfect run" ending, or an endless run where the ramp alone makes survival past the cap impossible?
+4. **Hard cap** with a "perfect run" ending (assumed), or an endless run where the ramp alone ends it?
+5. **"Endgame bonuses"** was read as permanent unlocks at best-score thresholds. The other reading is a choice of bonus after each run (plan idea 45). Which did you mean?
 
-## 10. Design decision log
+## 10. Achievements (Steam; first list)
+
+First Grab (finish a run) - Getting Warmer (reach heat stage 3) - Boiling Point (stage 6) - Perfect Run - Frequent Flyer (10 s total hang time in one run) - That Was Close (5 close calls in one run) - Living on the Edge (30 s of edge rider in one run) - Collector (every pickup type in one run) - Fully Kitted (all unlocks) - Purist (5,000 points with the default kit).
+
+## 11. Design decision log
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-11-14 | Goo rests as a puddle with zero shape stiffness; Firm Up adds stiffness so it balls up | Prototype: any constant stiffness made a rigid ball, not a gel |
+| 2026-11-14 | Invariant thresholds set to 10 s (hands off) and 20 s (frozen hand) at heat 0 | Prototype measures 3 s and 5-6.5 s across kits; thresholds leave room for tuning |
+| 2026-11-14 | Starting ramp: grip 2.0 -> 0.1, wobble 1.0 -> 9.0, size 1.0 -> 1.5 | Prototype: the first, gentler ramp let even a slow scripted player reach the cap |
+| 2026-11-14 | Heat is the single ramp, the timer and the goo's colour | One readable idea replaces three hidden curves; gives the cap a fiction (boil-off) |
+| 2026-11-14 | Style bonuses: hang time and close call added to edge rider | Rewards the toss and recoveries; gives experts more to chase than time |
+| 2026-11-14 | Gamepad triggers, keyboard and toggle-grab are scheduled, not ideas | Steam Deck and accessibility need them |
+| 2026-11-14 | Three human play gates (fun, content, presentation) before release | An AI session can measure the game but cannot judge how it feels |
+| 2026-11-14 | Mid-run events designed but built only if still wanted after the fun gate | Avoid piling content on an unproven core |
 | 2026-11-14 | 2D side-on view, one tilt axis | Matches the brief's gravity and drag description; small scope; same controls on mouse and touch |
 | 2026-11-14 | Plate on a free pivot, crowned surface, viscous-only goo grip | Guarantees no stable point by construction |
-| 2026-11-14 | "Loses within 20 s with no input" is a tested invariant for every kit | Keeps unlocks and powerups from accidentally creating a safe state |
 | 2026-11-14 | Grab-and-drag applies a spring force, not a direct angle | Plate must obey physics; gives weight, leverage and the toss skill |
 | 2026-11-14 | Hard session cap at 3:00 with a perfect-run bonus (assumed) | Brief requires a maximum session length |
 | 2026-11-14 | Unlocks at best-score thresholds; three kit slots | Brief: endgame bonuses that ease plate shape, plate properties, goo properties |
