@@ -9,3 +9,11 @@ Nothing is implemented yet. Features are added here in the PR that builds them; 
 - Tests: `tests/test_tag_release.sh` (new version, existing tag, malformed VERSION); run in CI. Not covered: the push to GitHub itself.
 - Changes:
   - v0.1.0: added.
+
+## Feature: Reference simulation  (major, tooling, not shipped)
+- Description: Python prototype of the plate and goo simulation; source of the starting parameters and the port reference.
+- Related minor features: scripted players (released, frozen, PD bot); scenario report.
+- Config: parameter dictionary `P` at the top of `tools/reference_sim.py`.
+- Tests: `python3 tools/reference_sim.py --check` (hands-off loss within 10 s, frozen-hand loss within 20 s, 3 seeds); run in CI. Not covered: bot survival times (reported, not asserted).
+- Changes:
+  - v0.1.1: added.
