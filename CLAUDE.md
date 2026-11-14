@@ -2,6 +2,7 @@
 
 Newest at the top. Each entry: date, decision, reason.
 
+- 2026-11-14 - **The prestige-award unlock method is undecided; build it behind `UnlockRule` with the Drops currency as default** and ask the user before item 19. Reason: user said the method is still open.
 - 2026-11-14 - **`tools/reference_sim.py` is the reference for the simulation**; `--check` runs in CI. If it and ARCHITECTURE.md disagree, the reference wins. Reason: a working, measured algorithm to port beats prose. Keep it until the GDScript sim passes the same checks, then decide with the user whether to keep or delete it.
 - 2026-11-14 - **An AI session never judges feel.** It uses invariant tests, bot reports and budgets; feel is decided by the user at the Human gates in PLAN.md. Reason: a model cannot play the game.
 - 2026-11-14 - **Tests and invariant thresholds are never weakened to pass**; tunables change instead, recorded in ARCHITECTURE.md "Tuning". Reason: the thresholds are the design.

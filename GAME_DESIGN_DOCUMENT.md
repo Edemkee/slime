@@ -19,8 +19,8 @@ Working title. Numbers are starting values for tuning, not commitments. Technica
 1. Goo drops onto the plate.
 2. Player grabs the plate and tilts it to keep the goo on, while steering the goo into pickups.
 3. The goo heats up: slipperier, bigger, wobblier.
-4. Goo falls off (or boils away at the cap) -> score, best score, progress to the next unlock.
-5. Unlocks earned by best score offer an easier kit -> retry.
+4. Goo falls off (or boils away at the cap) -> score, best score, reward.
+5. The session pays out toward prestige awards (permanent, easier kit), which help with harder challenges -> retry.
 
 ## 3. Presentation and camera
 
@@ -56,7 +56,7 @@ Three things together guarantee there is no resting state:
 - hands off the plate -> loss within **10 seconds**;
 - plate held but cursor never moved -> loss within **20 seconds**.
 
-No unlock may break this. The reference prototype measures about 3 s and 5 s for the default kit, and about 3.5 s and 6.5 s for the easiest kit combination.
+No prestige award may break this. The reference prototype measures about 3 s and 5 s for the default kit, and about 3.5 s and 6.5 s for the easiest kit combination.
 
 ### 4.5 Lose condition
 - The goo's centre drops below the plate's lower rim -> run ends. Brief slow-motion on the fall, then the score card. Retry with one click or key.
@@ -103,24 +103,57 @@ Pickups float just above the plate (reach by sliding) or higher up (reach by tos
 
 Score pickups appear near the rim more often than in the centre. Powerups never stop the heat.
 
-## 7. Progression: unlocks from best score
+## 7. Modes, challenges and prestige awards
 
-Reaching a best-score threshold permanently unlocks a kit piece. Before a run the player picks one **plate shape**, one **plate mod** and one **goo trait**. All make the game easier; none removes the instability (4.4).
+The long-term game is: **challenges make it harder, prestige awards make it easier.** Players earn awards across many short sessions and use them to beat challenges they could not beat before.
 
-| Best score | Unlock | Slot | Effect |
+### 7.1 Modes
+- **Freeplay**: the core score-attack run (sections 4-6). Before a run the player may switch on any **challenge modifiers**; each one raises the reward earned from that run.
+- **Challenges**: a ladder of about 20 short levels (30-90 s each). A level is a fixed set of modifiers plus a goal: survive N seconds, reach N points, collect N pickups, or make N close calls. Each level awards up to 3 stars. A level opens when the previous one has at least 1 star.
+
+### 7.2 Challenge modifiers (always harder)
+
+| Modifier | Effect |
+|---|---|
+| Tiny Saucer | Plate width -25% |
+| Greasy | Grip -40% |
+| Big Goo | Goo size +30% |
+| Hot Start | Run begins at heat stage 3 |
+| Featherweight | Plate inertia halved: tips faster |
+| Steep Crown | Crown height doubled |
+| No Powerups | Only score orbs appear |
+| Windy | Gusts through the whole run |
+| Sliding Pivot | The pivot drifts left and right |
+| Goo Rain | Droplets keep adding to the goo |
+
+The last three are the mid-run events of 4.7 used as permanent modifiers.
+
+### 7.3 Prestige awards (permanent, always easier)
+
+Once unlocked, an award is owned forever. Before any run or level the player equips one **plate shape**, one **plate mod** and one **goo trait**.
+
+| Award | Slot | Effect | Tier |
 |---|---|---|---|
-| 500 | Tacky Goo | Goo trait | +25% grip |
-| 1,200 | Wide Platter | Plate shape | +15% width |
-| 2,200 | Heavy Plate | Plate mod | 2x rotational inertia: tips more slowly |
-| 3,500 | Rimmed Plate | Plate shape | Low lip at both edges |
-| 5,000 | Compact Goo | Goo trait | Starts 20% smaller |
-| 7,000 | Gentle Crown | Plate shape | Flatter crown: slower creep |
-| 9,000 | Lucky Goo | Goo trait | Pickups appear more often and last longer |
-| Perfect run | Golden Goo | Cosmetic | Bragging rights |
+| Tacky Goo | Goo trait | +25% grip | 1 |
+| Wide Platter | Plate shape | +15% width | 2 |
+| Heavy Plate | Plate mod | 2x rotational inertia: tips more slowly | 3 |
+| Rimmed Plate | Plate shape | Low lip at both edges | 4 |
+| Compact Goo | Goo trait | Starts 20% smaller | 5 |
+| Gentle Crown | Plate shape | Flatter crown: slower creep | 6 |
+| Lucky Goo | Goo trait | Pickups appear more often and last longer | 7 |
+| Golden Goo | Cosmetic | For a perfect run | - |
 
-- The score card always shows a progress bar to the next unlock.
-- Because easier kits inflate scores, leaderboards are split: **Classic** (default kit only) and **Open** (any kit).
-- Thresholds will be re-tuned from real play at the content gate.
+### 7.4 How awards are unlocked (not decided)
+After every session the player should be able to make progress toward, or unlock, one or more awards. The method is open. **Working assumption so development is not blocked: a currency.**
+- **Drops** are paid out on the score card after every freeplay run (from the score, increased by each active modifier) and the first time each challenge star is earned.
+- Drops are spent in a **prestige shop** reachable from the score card and the menu. Cost rises with the tier. The first award should be affordable within about five sessions.
+- The unlock rule is data, not code, so it can be swapped for another method (best-score thresholds, star counts, a level-up track) without rework.
+
+### 7.5 Rules
+- The "no stable point" invariant (4.4) holds for every combination of awards.
+- Modifiers never make a run easier; awards never make it harder.
+- Later challenge levels are tuned to be very hard with no awards and comfortable with the right ones. Checked with scripted players: the average bot's success rate on those levels must be clearly higher with awards than without.
+- Leaderboards: **Classic** = freeplay with no awards and no modifiers; **Open** = freeplay with anything.
 
 ## 8. Feel, art, audio, accessibility
 
@@ -136,16 +169,21 @@ Reaching a best-score threshold permanently unlocks a kit piece. Before a run th
 2. **2D side-on** was assumed from "goo wants to go towards the bottom of the screen". A 3D two-axis tilting plate is a different, larger game.
 3. **Business model**: free on itch.io and a small price on Steam, or free on both?
 4. **Hard cap** with a "perfect run" ending (assumed), or an endless run where the ramp alone ends it?
-5. **"Endgame bonuses"** was read as permanent unlocks at best-score thresholds. The other reading is a choice of bonus after each run (plan idea 45). Which did you mean?
+5. **How are prestige awards unlocked?** Assumed: a currency (Drops) earned every session and spent in a shop (7.4). Alternatives: score thresholds, challenge stars, a level-up track.
+6. **Challenges as levels, as freeplay modifiers, or both?** Assumed both: modifiers first (cheap), then the level ladder built from them.
 
 ## 10. Achievements (Steam; first list)
 
-First Grab (finish a run) - Getting Warmer (reach heat stage 3) - Boiling Point (stage 6) - Perfect Run - Frequent Flyer (10 s total hang time in one run) - That Was Close (5 close calls in one run) - Living on the Edge (30 s of edge rider in one run) - Collector (every pickup type in one run) - Fully Kitted (all unlocks) - Purist (5,000 points with the default kit).
+First Grab (finish a run) - Getting Warmer (reach heat stage 3) - Boiling Point (stage 6) - Perfect Run - Frequent Flyer (10 s total hang time in one run) - That Was Close (5 close calls in one run) - Living on the Edge (30 s of edge rider in one run) - Collector (every pickup type in one run) - Fully Kitted (all prestige awards) - Star Pupil (a star on every challenge level) - Purist (5,000 points with the default kit).
 
 ## 11. Design decision log
 
 | Date | Decision | Reason |
 |---|---|---|
+| 2026-11-14 | "Endgame bonuses" are prestige awards: permanent, earned across sessions, making challenges easier | User clarification |
+| 2026-11-14 | Two modes: Freeplay with optional challenge modifiers, and a Challenge level ladder | User: challenges via levels or freeplay with modifiers |
+| 2026-11-14 | Unlock method left open; a Drops currency is the working assumption, with the unlock rule kept as data | User has not decided; development must not block on it |
+| 2026-11-14 | Best-score unlock thresholds dropped | Replaced by prestige awards |
 | 2026-11-14 | Goo rests as a puddle with zero shape stiffness; Firm Up adds stiffness so it balls up | Prototype: any constant stiffness made a rigid ball, not a gel |
 | 2026-11-14 | Invariant thresholds set to 10 s (hands off) and 20 s (frozen hand) at heat 0 | Prototype measures 3 s and 5-6.5 s across kits; thresholds leave room for tuning |
 | 2026-11-14 | Starting ramp: grip 2.0 -> 0.1, wobble 1.0 -> 9.0, size 1.0 -> 1.5 | Prototype: the first, gentler ramp let even a slow scripted player reach the cap |

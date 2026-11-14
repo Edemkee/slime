@@ -57,7 +57,8 @@ This plan is written so that a fresh session (for example Claude Opus 5.5) with 
 | Any time | Answer the open questions in GDD section 9 (item 3) |
 | Before item 8 | Repository Settings -> Pages -> Source: "GitHub Actions" |
 | Item 12 | Play the grey-box build and give feedback (fun gate) |
-| Item 22 | Play the content build; confirm or adjust unlock thresholds |
+| Before item 19 | Decide how prestige awards are unlocked (GDD section 9 question 5). If undecided, the Drops currency default is built |
+| Item 22 | Play the content build; confirm or adjust award costs and challenge goals |
 | Before item 25 | Decide where audio comes from (commissioned, licensed packs, other) |
 | Item 28 | Review look, sound and menus |
 | Before item 30 | Create the itch.io project page; add `BUTLER_API_KEY` as an Actions secret |
@@ -72,7 +73,7 @@ States: `open`, `in progress`, `rejected`, `done`. "Who": AI = a session can fin
 | # | Item | State | Milestone | Depends on | Who | Notes |
 |---|------|-------|-----------|------------|-----|-------|
 | 1 | Repo setup: docs, VERSION, .gitignore, tag-release, CI | done | M0 | - | AI | v0.1.0 |
-| 2 | Design round 2, reference simulation, executable plan | done | M0 | 1 | AI | v0.1.1 |
+| 2 | Design round 2, reference simulation, executable plan | done | M0 | 1 | AI | v0.1.1; prestige awards and challenge modes added in v0.1.2 |
 | 3 | Answer open design questions (GDD section 9) | open | M0 | - | Human | Does not block M1 |
 | 4 | Godot project skeleton, GUT, headless tests in CI | open | M1 | 1 | AI | next up |
 | 5 | Simulation: plate | open | M1 | 4 | AI | |
@@ -89,10 +90,10 @@ States: `open`, `in progress`, `rejected`, `done`. "Who": AI = a session can fin
 | 16 | Save data | open | M2 | 14 | AI | |
 | 17 | Pickup spawner and collection | open | M3 | 15 | AI | |
 | 18 | Six powerups | open | M3 | 17 | AI | |
-| 19 | Kit system and unlock thresholds | open | M3 | 16, 18 | AI | |
-| 20 | Kit select screen and unlock presentation | open | M3 | 19 | AI | |
-| 21 | Mid-run events: gust, sliding pivot, goo rain | open | M3 | 18 | AI | Confirm with the user after item 12 before starting |
-| 22 | **Content gate**: user plays; thresholds re-tuned | open | M3 | 20 | Human | |
+| 19 | Prestige awards: kit system, Drops currency, unlock rules | open | M3 | 16, 18 | AI | Unlock method is the user's call; default is built if undecided |
+| 20 | Prestige shop, kit select, reward on the score card | open | M3 | 19 | AI | |
+| 21 | Mid-run events: gust, sliding pivot, goo rain | open | M3 | 18 | AI | Confirm with the user after item 12 before starting; also used as modifiers by item 51 |
+| 22 | **Content gate**: user plays; costs and goals re-tuned | open | M3 | 20, 52 | Human | |
 | 23 | Goo rendering: smooth outline, shader, heat colour, face | open | M4 | 12 | AI | |
 | 24 | Plate and background art, particles, reduced motion | open | M4 | 23 | AI | |
 | 25 | Audio: effects and layered music | open | M4 | 13 | AI | Human decides the asset source first |
@@ -105,6 +106,8 @@ States: `open`, `in progress`, `rejected`, `done`. "Who": AI = a session can fin
 | 32 | Steam Deck pass | open | M5 | 27, 31 | AI | |
 | 33 | Steam store page, images, trailer, build upload | open | M5 | 31 | Human | AI prepares text, screenshots, upload script |
 | 34 | **Release gate** | open | M5 | 30, 32, 33 | Human | |
+| 51 | Challenge modifiers and freeplay modifier select | open | M3 | 19 | AI | Do after 20 or 21, before 22. Absorbs idea 38 |
+| 52 | Challenge levels: ladder, goals, stars, level select | open | M3 | 51 | AI | Before 22 |
 
 ## 4. Item specs
 
@@ -179,12 +182,12 @@ Each spec assumes you have read the GDD and ARCHITECTURE.md. "Sim spec" means AR
 - **Bump**: minor.
 
 ### 15. HUD and score card
-- **Build**: in-run HUD (score, multiplier, heat meter); score card (score, best, "new best" state, breakdown by source, progress bar to the next unlock, retry hint). All text through `tr()`.
+- **Build**: in-run HUD (score, multiplier, heat meter); score card (score, best, "new best" state, breakdown by source, retry hint; reward and shop entry are added by item 20). All text through `tr()`.
 - **Accept**: readable at 1280x720 and 1920x1080; the heat meter and multiplier never rely on colour alone; no text overlaps at any stage.
 - **Bump**: minor.
 
 ### 16. Save data
-- **Build**: `src/game/save_data.gd`: one JSON file in `user://` with a schema version, best score, lifetime score, unlocked kit pieces, selected kit, settings. Write to a temp file then rename. Load tolerates a missing, empty, corrupt or newer-version file (falls back to defaults, keeps a `.bak`, never crashes).
+- **Build**: `src/game/save_data.gd`: one JSON file in `user://` with a schema version, best score, lifetime score, settings. Items 19 and 52 extend it (wallet, owned awards, selected kit, stars) through migrations. Write to a temp file then rename. Load tolerates a missing, empty, corrupt or newer-version file (falls back to defaults, keeps a `.bak`, never crashes).
 - **Accept**: all the failure cases above are handled; the game is fully playable when saving is impossible (browser storage blocked) and tells the player once, unobtrusively.
 - **Tests**: GUT tests for round trip, each failure case, and a migration from schema 1 to a dummy schema 2.
 - **Bump**: minor.
@@ -201,16 +204,17 @@ Each spec assumes you have read the GDD and ARCHITECTURE.md. "Sim spec" means AR
 - **Tests**: GUT tests per powerup, the stack-restores-exactly property with random sequences, and the invariant test from item 9 re-run with each timed powerup forced permanently on, recorded in the PR for information (powerups are temporary, so this is not a pass/fail line).
 - **Bump**: minor.
 
-### 19. Kit system and unlock thresholds
-- **Build**: kit pieces as resources in `src/data/kits/` (three slots per GDD section 7), applied as parameter modifiers before a run; unlock check against best score; thresholds in one data file.
-- **Accept (invariant for every kit)**: for **every** combination of plate shape x plate mod x goo trait, the item 9 invariant holds (`released` within 10 s, `frozen` within 20 s, heat 0, 5 seeds). Each easing piece increases the average bot's median survival compared with the default piece (so it really is easier).
-- **Tests**: a GUT test that enumerates all combinations; a test per piece for the "really easier" line; unlock threshold boundary tests.
+### 19. Prestige awards: kit system, Drops currency, unlock rules
+- **Before starting**: ask the user whether the unlock method (GDD 7.4, section 9 question 5) is decided. If not, build the Drops default below; the design must make swapping it cheap.
+- **Build**: award pieces as resources in `src/data/awards/` (three slots per GDD 7.3), applied as parameter modifiers before a run; `src/game/progression.gd` with an `UnlockRule` interface and one implementation, `DropsUnlockRule` (cost per award from a data file); Drops payout function (from score, active modifiers' reward bonus, and first-time challenge stars); wallet and owned awards stored through save data (extend the schema with a migration).
+- **Accept (invariant for every kit)**: for **every** combination of plate shape x plate mod x goo trait, the item 9 invariant holds (`released` within 10 s, `frozen` within 20 s, heat 0, 5 seeds). Each award increases the average bot's median survival compared with the default piece (so it really is easier). Replacing `DropsUnlockRule` with a test double needs no change outside `progression.gd` and its data. Drops can never go negative; an award cannot be bought twice.
+- **Tests**: a GUT test that enumerates all combinations; a test per award for the "really easier" line; payout, purchase and boundary tests; save migration test.
 - **Bump**: minor.
 
-### 20. Kit select screen and unlock presentation
-- **Build**: pre-run kit select (three slots, locked pieces show their threshold); score card announces new unlocks; selection saved.
-- **Accept**: usable with mouse only and with keyboard/gamepad focus only; a locked piece can never be selected, including by editing the save file (validated on load).
-- **Tests**: GUT tests for selection validation.
+### 20. Prestige shop, kit select, reward on the score card
+- **Build**: score card shows Drops earned this session and what is now affordable; prestige shop (from the score card and the menu) to buy awards; pre-run kit select (three slots, unowned awards show their cost); selection saved.
+- **Accept**: usable with mouse only and with keyboard/gamepad focus only; an unowned award can never be equipped, including by editing the save file (validated on load); from the score card, retry is still one input and never blocked by the shop.
+- **Tests**: GUT tests for selection validation and the affordable-list logic.
 - **Bump**: minor.
 
 ### 21. Mid-run events
@@ -221,7 +225,7 @@ Each spec assumes you have read the GDD and ARCHITECTURE.md. "Sim spec" means AR
 - **Bump**: minor.
 
 ### 22. Content gate (Human)
-- **Prepare**: Pages build; `scripts/sim_report.sh` output for every kit; ask the user for their own best scores and which unlocks they reached. Propose thresholds so that the first unlock lands in the first few minutes of play and the last needs real skill. Apply in a PATCH PR after the user agrees.
+- **Prepare**: Pages build; `scripts/sim_report.sh` output for every award combination and every challenge level; ask the user for their own scores, Drops earned per session, and where they got stuck. Propose award costs so that the first award is affordable within about five sessions, and level goals so that later levels need awards. Apply in a PATCH PR after the user agrees.
 
 ### 23. Goo rendering
 - **Build**: smooth closed outline from the particle ring (Catmull-Rom or Chaikin), a fill shader with gloss and rim light, colour driven by heat (cool to hot), eyes that look along the velocity and widen near the rim, a "balled up" look while Firm Up is active. Compatibility-renderer shaders only.
@@ -267,7 +271,7 @@ Each spec assumes you have read the GDD and ARCHITECTURE.md. "Sim spec" means AR
 ### 31. PlatformService and Steam integration
 - **Human first**: Steamworks account, app ID, achievements and the two leaderboards created in Steamworks (section 2).
 - **Build**: `src/platform/platform_service.gd` (interface), `null_platform.gd` (web and itch), `steam_platform.gd` using the current GodotSteam release for the pinned Godot version: achievements (list in GDD section 10), Classic and Open leaderboards, cloud save for the save file. Steam code is only loaded in Steam builds.
-- **Accept**: the web export contains no Steam library; with Steam absent or offline the game runs normally; a run with the default kit posts to Classic, any other kit to Open; the app ID is not committed (`steam_appid.txt` stays ignored).
+- **Accept**: the web export contains no Steam library; with Steam absent or offline the game runs normally; a freeplay run with no awards and no modifiers posts to Classic, any other freeplay run to Open; the app ID is not committed (`steam_appid.txt` stays ignored).
 - **Tests**: GUT tests against a fake `PlatformService` for every call site.
 - **Bump**: minor.
 
@@ -282,6 +286,18 @@ Each spec assumes you have read the GDD and ARCHITECTURE.md. "Sim spec" means AR
 ### 34. Release gate (Human)
 - **Prepare**: a release checklist in the PR: all gates passed, all store builds from the same tag, CHANGELOG reads well as patch notes, credits complete, save data survives an update from the previous version. Ask whether this release is 1.0.0.
 
+### 51. Challenge modifiers and freeplay modifier select
+- **Build**: modifiers as resources in `src/data/modifiers/` per GDD 7.2, going through the same modifier stack as awards and powerups; each has a reward bonus used by the Drops payout; a freeplay pre-run panel to toggle them; active modifiers shown on the HUD and score card. Windy, Sliding Pivot and Goo Rain are included only if item 21 is done; otherwise leave them out and note it here.
+- **Accept**: every modifier lowers the average bot's median survival compared with no modifier (so it really is harder); the item 9 invariant still holds with any single modifier and with all of them together; a run with any modifier or award posts to the Open board, never Classic (assert on the flag that item 31 will read).
+- **Tests**: a GUT test per modifier for the "really harder" line; stack-restores-exactly with awards + modifiers + powerups mixed.
+- **Bump**: minor.
+
+### 52. Challenge levels: ladder, goals, stars, level select
+- **Build**: levels as resources in `src/data/levels/` (modifier set, goal type and value, three star thresholds, seed); goal types: survive, score, collect pickups, close calls; run controller ends a level on goal reached or loss; level select screen with stars and lock state; stars saved; first-time stars pay Drops. Ship about 20 levels with increasing difficulty; mark the later ones `awards_expected` with a recommended kit.
+- **Accept**: the ladder order is enforced (also against an edited save file); for every level, the expert bot with the recommended kit reaches at least 1 star in most of 10 seeds (the level is possible); for every `awards_expected` level, the average bot's success rate with the recommended kit is at least 30 percentage points higher than with no awards; no level lasts longer than 90 s.
+- **Tests**: GUT tests for each goal type, star thresholds, lock rules, and the bot lines above (may run in a separate, slower CI job).
+- **Bump**: minor.
+
 ## 5. Ideas (unscheduled) and rejected
 
 | # | Item | State | Notes |
@@ -289,14 +305,14 @@ Each spec assumes you have read the GDD and ARCHITECTURE.md. "Sim spec" means AR
 | 35 | Daily challenge with a fixed seed | open | Cheap because the sim is seeded |
 | 36 | Replay or ghost of the best run | open | Record `SimInput` per tick; exact playback is only guaranteed on the same platform |
 | 37 | Hazard pickups (grease, growth) | open | After item 22 |
-| 38 | Challenge kits: harder plates with a score multiplier | open | Gives experts something after the last unlock |
-| 39 | Cosmetics unlocked by lifetime score | open | A path for players who plateau; lifetime score is already saved (item 16) |
+| 38 | Challenge kits: harder plates with a score multiplier | rejected | Superseded: built as challenge modifiers in item 51 |
+| 39 | Cosmetics bought with Drops or unlocked by lifetime score | open | Something to spend on after all awards are owned |
 | 40 | Mobile store release | open | Touch already works in the web build |
 | 41 | Steam demo / festival build | open | The web build already serves as a demo on itch.io |
 | 42 | Small always-on-top "desk toy" window mode | open | |
 | 43 | Cosmetic drips from goo overhanging the rim | open | Visual only; could fold into item 24 |
 | 44 | Save export/import as a text code | open | Helps browser players whose storage gets cleared |
-| 45 | After each run, pick one of three bonuses for the next run | open | Alternative reading of "endgame bonuses"; see GDD section 9 question 5 |
+| 45 | After each run, pick one of three bonuses for the next run | rejected | User clarified: bonuses are permanent prestige awards (GDD section 7) |
 | 46 | 3D plate with two-axis tilt | rejected | Much larger scope; side-on reads better. Reopen if GDD question 2 says otherwise |
 | 47 | Goo built from engine rigid bodies and joints | rejected | Jittery, hard to tune, not deterministic |
 | 48 | Goo loses mass through drips, mass acts as health | rejected | Brief says falling off is the loss; a gradual loss blurs it |

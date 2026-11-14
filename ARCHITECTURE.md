@@ -14,11 +14,11 @@ Planned structure (no game code yet). Update with the version whenever it change
 ```
 project.godot
 src/sim/        pure simulation: sim_params.gd, sim_state.gd, sim_input.gd, sim.gd, plate_profile.gd, bots.gd
-src/game/       run_controller.gd, heat.gd, scoring.gd, pickups, powerup stack, kits, save_data.gd
+src/game/       run_controller.gd, heat.gd, scoring.gd, pickups, modifier stack, progression.gd, save_data.gd
 src/view/       goo renderer, plate, particles, audio hooks
 src/ui/         HUD, score card, menus, kit select, tuning panel
 src/platform/   platform_service.gd, null_platform.gd, steam_platform.gd
-src/data/       resources: kits/, pickups/, default sim params
+src/data/       resources: awards/, modifiers/, levels/, pickups/, default sim params
 assets/         art, audio, fonts, CREDITS.md
 tests/          GUT tests (tests/unit/...), shell and Python tool tests
 addons/gut/     vendored test framework
@@ -34,13 +34,13 @@ flowchart TD
     Input[Input: mouse, touch, gamepad, keyboard] -->|SimInput| Run[RunController: state machine, 120 Hz fixed step]
     Heat[Heat: 0..1, stage] --> Run
     Run --> Sim[Sim.step: plate, goo, contact, lose check]
-    Mods[Modifier stack: kit + powerups + events] -->|effective SimParams| Sim
+    Mods[Modifier stack: awards + challenge modifiers + powerups + events] -->|effective SimParams| Sim
     Run --> Pickups[Pickup spawner]
     Pickups --> Mods
     Sim -->|SimState, read only| View[View: goo, plate, particles, audio]
     Sim -->|SimState| Score[Scoring]
     Score --> HUD[HUD and score card]
-    Score --> Prog[Progression: unlocks, kit select]
+    Score --> Prog[Progression: Drops, UnlockRule, awards, challenge stars]
     Prog --> Save[SaveData: user:// JSON]
     Prog --> Platform[PlatformService]
     Platform --> Null[Null: web, itch]
@@ -52,7 +52,8 @@ flowchart TD
 
 - **`src/sim/` is pure**: plain GDScript objects, no Node, scene-tree, rendering, `Input`, `Time` or global random calls. State in, `SimInput` in, fixed time step, state out. Randomness comes from a seeded generator stored in the state.
 - **View reads simulation state and never writes to it.**
-- **Kit pieces, powerups and events are data** that produce multipliers on `SimParams` through one modifier stack. Adding one needs no new simulation code. When all modifiers are removed the effective parameters equal the base exactly.
+- **How awards are unlocked is behind an `UnlockRule` interface** (default: Drops currency), because the method is not decided.
+- **Prestige awards, challenge modifiers, powerups and events are data** that produce multipliers on `SimParams` through one modifier stack. Adding one needs no new simulation code. When all modifiers are removed the effective parameters equal the base exactly.
 - **Only `src/platform/` may reference store SDKs.**
 - **All user-visible strings go through `tr()`.**
 
@@ -153,5 +154,6 @@ Record every change to a parameter here: date, version, parameter, old -> new, r
 
 ## Change log
 
+- v0.1.2: prestige awards, challenge modifiers and levels; `UnlockRule` interface.
 - v0.1.1: simulation spec, parameter table, layout, testing strategy; reference prototype added.
 - v0.1.0: initial planned architecture.

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.2 - 2026-11-14
+### Changed
+- Design: "endgame bonuses" are now prestige awards earned across sessions (working assumption: a Drops currency), replacing best-score unlock thresholds
+- Design: two modes, Freeplay with optional challenge modifiers and a Challenge level ladder
+- Plan: items 19 and 20 rewritten for prestige awards and the shop; new items 51 (challenge modifiers) and 52 (challenge levels)
+
 ## v0.1.1 - 2026-11-14
 ### Added
 - Reference simulation prototype (tools/reference_sim.py) with a design-invariant check in CI
